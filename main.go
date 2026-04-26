@@ -10,16 +10,26 @@ import (
 func main() {
 	r := gin.Default()
 
-	r.POST("/createAccount", handlers.CreateAccount)
-	r.POST("/login", handlers.Login)
+	// Public endpoints
+	r.POST("/createAccount", handlers.CreateAccount) // Utility to register users
+	r.GET("/login", handlers.Login)                  // Login using Basic Auth or JSON
+	r.POST("/login", handlers.Login)                 // Support both GET and POST for login flexibility
 
-	protected := r.Group("/api")
-	protected.Use(handlers.CheckAuthorization()) //"Proteje" a los endpoints. Usa a checkAuth para ver si el token que uso el usuario es correcto
+	// Protected endpoints
+	protected := r.Group("/")
+	protected.Use(handlers.CheckAuthorization()) // Middleware to protect endpoints
 	{
-		protected.GET("/vinyls", handlers.GetVinylRegistry)
+		protected.GET("/logout", handlers.Logout)           // Revoke token
+		protected.POST("/logout", handlers.Logout)          // Support both GET and POST
+		protected.GET("/albums", handlers.GetAlbums)        // Get all albums
+		protected.GET("/albums/:id", handlers.GetAlbumByID) // Get album by specific ID
+		protected.POST("/post-album", handlers.PostAlbum)   // Add a new album (per curl example)
+		protected.POST("/createAlbum", handlers.PostAlbum)  // Add a new album (per list example)
+		protected.GET("/status", handlers.GetSystemStatus)  // Get system status and user
 	}
 
-	if err := r.Run(); err != nil {
+	// Start the server
+	if err := r.Run(":8080"); err != nil {
 		log.Fatalf("failed to run server: %v", err)
 	}
 }
