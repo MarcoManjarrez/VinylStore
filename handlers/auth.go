@@ -10,30 +10,29 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// CreateAccount allows a new user to register
 func CreateAccount(c *gin.Context) {
 	var json User
-	if err := c.ShouldBindJSON(&json); err != nil {
+	if err := c.ShouldBindJSON(&json); err != nil { //Maps json to the User var
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if json.Username == "" || json.Password == "" {
+	if json.Username == "" || json.Password == "" { //Checks if both Username and Password are passed. BadRequest if not
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Password or username cannot be empty."})
 		return
 	}
-	if len(json.Password) < 5 {
+	if len(json.Password) < 5 { //Checks if password is 5 characters in length or more. BadRequest if not
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Password must be at least 5 characters."})
 		return
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(json.Password), 10)
+	hash, err := bcrypt.GenerateFromPassword([]byte(json.Password), 10) //Attempts to hash pasword ebfore storing. InternalServerError if not
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error hashing password"})
 		return
 	}
 
-	mu.Lock()
+	mu.Lock() //Protects resources to first change the string password to the generated hash and then stores the new user in the slice
 	json.Password = string(hash)
 	users = append(users, json)
 	mu.Unlock()
@@ -41,26 +40,23 @@ func CreateAccount(c *gin.Context) {
 	c.JSON(http.StatusAccepted, gin.H{"message": "User registered successfully"})
 }
 
-// Login authenticates the user and provides a token
 func Login(c *gin.Context) {
-	// The instructions show curl -u username:password, which implies Basic Auth.
-	username, password, hasAuth := c.Request.BasicAuth()
+	username, password, hasAuth := c.Request.BasicAuth() //Gets usrname, password and hasAuth from request
 
-	// Fallback to JSON payload if Basic Auth is not provided
-	if !hasAuth {
+	if !hasAuth { //If no hasAuth exists, we have a backup json request attempt
 		var json User
-		if err := c.ShouldBindJSON(&json); err == nil {
+		if err := c.ShouldBindJSON(&json); err == nil { //Binds the json to the variable to see if we can rescue the request
 			username = json.Username
 			password = json.Password
 		}
 	}
 
-	if username == "" || password == "" {
+	if username == "" || password == "" { //Checks if username and password exists. BR if not
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Password or username empty."})
 		return
 	}
 
-	var foundUser *User
+	var foundUser *User //Check to find the username
 	for i := range users {
 		if users[i].Username == username {
 			foundUser = &users[i]
@@ -68,23 +64,22 @@ func Login(c *gin.Context) {
 		}
 	}
 
-	if foundUser == nil {
+	if foundUser == nil { //Check to see if the username does exist or not. Status unauthorized if not
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 		return
 	}
 
-	err := bcrypt.CompareHashAndPassword([]byte(foundUser.Password), []byte(password))
+	err := bcrypt.CompareHashAndPassword([]byte(foundUser.Password), []byte(password)) //Compares the found user's hashed password with the string password from request to validate
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Password incorrect."})
 		return
 	}
 
-	// Generate Token
-	claims := jwt.MapClaims{
-		"user": foundUser.Username,
-		"exp":  time.Now().Add(time.Hour * 2).Unix(),
+	claims := jwt.MapClaims{ //Maps a jwt claim to generate an access token
+		"user": foundUser.Username,                   //Keep username the same
+		"exp":  time.Now().Add(time.Hour * 2).Unix(), //Expiration 2 hours from creation
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims) //Gets token and turns it to string
 	tokenString, err := token.SignedString(signKey)
 
 	if err != nil {
@@ -98,13 +93,13 @@ func Login(c *gin.Context) {
 	})
 }
 
-// Logout revokes the token so it cannot be used again
+// Logs user out
 func Logout(c *gin.Context) {
-	tokenString := c.GetString("raw_token")
+	tokenString := c.GetString("raw_token") //Gets token and username
 	username := c.GetString("username")
 
 	mu.Lock()
-	revokedTokens[tokenString] = true
+	revokedTokens[tokenString] = true //Turns token into a revokedToken
 	mu.Unlock()
 
 	c.JSON(http.StatusOK, gin.H{

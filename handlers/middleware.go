@@ -20,15 +20,15 @@ func CheckAuthorization() gin.HandlerFunc {
 			return
 		}
 
-		// Extract token from "Bearer <token>"
+		//Extracts token from "Bearer <token>"
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 
-		// Fallback in case the user didn't include the "Bearer " prefix
+		//Fallback in case the user didn't include the "Bearer " prefix
 		if tokenString == authHeader {
 			tokenString = strings.TrimSpace(authHeader)
 		}
 
-		// Check if token has been revoked (Logout implementation)
+		//Check if token has been revoked
 		mu.Lock()
 		isRevoked := revokedTokens[tokenString]
 		mu.Unlock()
@@ -39,7 +39,7 @@ func CheckAuthorization() gin.HandlerFunc {
 			return
 		}
 
-		// Parse the token
+		//Parse the token
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method")
@@ -47,14 +47,14 @@ func CheckAuthorization() gin.HandlerFunc {
 			return signKey, nil
 		})
 
-		// Validate token and extract claims
+		//Validate token and extract claims
 		if err != nil || !token.Valid {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token detected"})
 			c.Abort()
 			return
 		}
 
-		// Set variables into context for endpoints to use
+		//Set variables into context for endpoints to use
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
 			c.Set("username", claims["user"])
 			c.Set("raw_token", tokenString)

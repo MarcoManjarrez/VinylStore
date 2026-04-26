@@ -6,47 +6,41 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GetAlbums returns all albums from the store
 func GetAlbums(c *gin.Context) {
-	c.JSON(http.StatusOK, albums)
+	c.JSON(http.StatusOK, albums) //Simply returns all albums in albums slice
 }
 
-// GetAlbumByID fetches a specific album by its ID
 func GetAlbumByID(c *gin.Context) {
-	id := c.Param("id")
+	id := c.Param("id") //Gets the id in the params
 
-	for _, album := range albums {
+	for _, album := range albums { //Checks all albums to see if one has a corresponding one
 		if album.ID == id {
-			// Wrapping inside a slice to match the PDF instructions array format output
-			c.JSON(http.StatusOK, []Album{album})
+			c.JSON(http.StatusOK, []Album{album}) //Success status
 			return
 		}
 	}
-
-	// Returns 404 if not found as requested in instructions
 	c.JSON(http.StatusNotFound, gin.H{"error": "Album not found"})
 }
 
-// PostAlbum adds a new album to the store
+// Posts new album to the registry
 func PostAlbum(c *gin.Context) {
 	var newAlbum Album
 
 	if err := c.ShouldBindJSON(&newAlbum); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}) //If binding json fields fails returns a bad request error
 		return
 	}
 
 	mu.Lock()
 	defer mu.Unlock()
 
-	// Prevent duplicate IDs (Rubric requirement)
-	for _, album := range albums {
+	for _, album := range albums { //Accesses the album registry to check if the new album's id is unique
 		if album.ID == newAlbum.ID {
-			c.JSON(http.StatusConflict, gin.H{"error": "An album with this ID already exists"})
+			c.JSON(http.StatusConflict, gin.H{"error": "An album with this ID already exists"}) //Returns a conflict error if not
 			return
 		}
 	}
 
-	albums = append(albums, newAlbum)
-	c.JSON(http.StatusCreated, newAlbum)
+	albums = append(albums, newAlbum)    //Adds new album
+	c.JSON(http.StatusCreated, newAlbum) //Success
 }
