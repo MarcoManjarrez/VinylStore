@@ -3,7 +3,7 @@ A Go API for managing a vinyl record registry, with JWT authentication and Gin f
 
 ## Instalation
 ### Prerequisites
-> Go version 1.20 or higher
+> Go version 1.20 or higher and
 > curl 8.18.0 or higher
 
 ### Setup
